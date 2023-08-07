@@ -1,8 +1,20 @@
-# This script assume that a Kafka connection called "ViridianTrialKafka" and 
-# a Postgres connection called "ViridianTrialPostgres" already exist.
-
-# Create mappings to particular topics/tables using those data connections.
-#
+-- Run this script with the Hazelcast CLC.
+-- The Hazelcast CLC can be downloaded from https://github.com/hazelcast/hazelcast-commandline-client/releases/tag/v5.3.2
+-- 
+-- Before running the script, you will need to login to viridian and import 
+-- the connection configuration for your cluster.  Once you have imported the connection configuration
+-- it will be stored locally and it will not be necessary to import it again for future sessions.
+--
+-- To login and import a configuration, use the following steps 
+-- CLC> \viridian login --api-key=xxxxx --api-secret=yyyyyyyy
+-- CLC> \viridian import-config mycluster
+--
+--
+-- This script assume that a Kafka connection called "ViridianTrialKafka" and 
+-- a Postgres connection called "ViridianTrialPostgres" already exist.
+--
+-- Create mappings to particular topics/tables using those data connections.
+--
 CREATE OR REPLACE MAPPING "departures"
 EXTERNAL NAME "viridiantrial.flights.departures" (
   event_time timestamp with time zone,
@@ -34,7 +46,7 @@ OPTIONS (
     'valueFormat' = 'json-flat'
 );
 
-# Now tell Hazelcast how the streaming data is ordered
+-- Now tell Hazelcast how the streaming data is ordered
 
 CREATE OR REPLACE VIEW arrivals_ordered AS
 SELECT * FROM TABLE (
@@ -43,7 +55,7 @@ SELECT * FROM TABLE (
      DESCRIPTOR(event_time),  
      INTERVAL '1' HOUR
   )
-)
+);
 
 CREATE OR REPLACE VIEW departures_ordered AS
 SELECT * FROM TABLE (
@@ -52,30 +64,29 @@ SELECT * FROM TABLE (
      DESCRIPTOR(event_time),  
      INTERVAL '1' HOUR
   )
-)
+);
 
 
-
-# Postgres Mappings
-CREATE MAPPING "connections"
+-- Postgres Mappings
+CREATE OR REPLACE MAPPING "connections"
 EXTERNAL NAME "public"."connections" (
   arriving_flight varchar,
   departing_flight varchar
 )
-DATA CONNECTION "ViridianTrialPostgres"
+DATA CONNECTION "ViridianTrialPostgres";
 
-CREATE MAPPING "minimum_connection_times"
+CREATE OR REPLACE MAPPING "minimum_connection_times"
 EXTERNAL NAME "public"."minimum_connection_times" (
   airport varchar,
   arrival_terminal varchar,
   departure_terminal varchar,
   minutes integer
 )
-DATA CONNECTION "ViridianTrialPostgres"
+DATA CONNECTION "ViridianTrialPostgres";
 
 
-#  copy mct and connection data from Postgres into IMaps
-CREATE MAPPING local_mct(
+--  copy mct and connection data from Postgres into IMaps
+CREATE OR REPLACE MAPPING local_mct(
   airport varchar,
   arrival_terminal varchar,
   departure_terminal varchar,
@@ -87,12 +98,12 @@ OPTIONS (
   'valueFormat' = 'json-flat'
 );
 
-
+DELETE FROM local_mct;
 INSERT INTO local_mct(__key, airport, arrival_terminal, departure_terminal, minutes) 
 SELECT airport||arrival_terminal||departure_terminal, airport, arrival_terminal, departure_terminal, minutes 
-FROM minimum_connection_times
+FROM minimum_connection_times;
 
-CREATE MAPPING local_connections(
+CREATE OR REPLACE MAPPING local_connections(
   arriving_flight varchar,
   departing_flight varchar
 )
@@ -102,12 +113,13 @@ OPTIONS (
   'valueFormat' = 'json-flat'
 );
 
+DELETE FROM local_connections;
 INSERT INTO local_connections(__key, arriving_flight, departing_flight) 
-SELECT arriving_flight || departing_flight, arriving_flight, departing_flight FROM "connections"
+SELECT arriving_flight || departing_flight, arriving_flight, departing_flight FROM "connections";
 
-# finally, create the job that joins everything up and sinks it to 
+-- finally, create the job that joins everything up and sinks it to 
 
-CREATE MAPPING live_connections(
+CREATE OR REPLACE MAPPING live_connections(
   arriving_flight varchar,
   arrival_gate varchar,
   arrival_time timestamp,
@@ -123,6 +135,7 @@ OPTIONS (
   'valueFormat' = 'json-flat'
 );
 
+DROP JOB IF EXISTS update_connections;
 
 CREATE JOB update_connections 
 AS
@@ -156,4 +169,4 @@ INNER JOIN departures_ordered D
 INNER JOIN local_mct M
 ON A.airport = M.airport
 AND SUBSTRING(A.arrival_gate FROM 1 FOR 1) = M.arrival_terminal 
-AND SUBSTRING(D.departure_gate FROM 1 FOR 1) = M.departure_terminal 
+AND SUBSTRING(D.departure_gate FROM 1 FOR 1) = M.departure_terminal;
