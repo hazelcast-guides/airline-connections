@@ -127,7 +127,8 @@ CREATE OR REPLACE MAPPING live_connections(
   departure_gate varchar,
   departure_time timestamp,
   connection_minutes integer,
-  mct integer
+  mct integer,
+  connection_status varchar
 )
 Type IMap 
 OPTIONS (
@@ -148,7 +149,8 @@ SINK INTO live_connections(
   departure_gate,
   departure_time,
   connection_minutes,
-  mct
+  mct,
+  connection_status
 ) 
 SELECT 
   C.arriving_flight || C.departing_flight,
@@ -159,7 +161,11 @@ SELECT
   D.departure_gate, 
   D.departure_time,
   CAST((EXTRACT(EPOCH FROM D.departure_time) - EXTRACT(EPOCH FROM A.arrival_time))/60 AS INTEGER) AS connection_minutes,
-  M.minutes as mct 
+  M.minutes as mct, 
+  CASE 
+    WHEN CAST((EXTRACT(EPOCH FROM D.departure_time) - EXTRACT(EPOCH FROM A.arrival_time))/60 AS INTEGER) < M.minutes THEN 'AT RISK'
+    ELSE 'OK'
+  END as connection_status
 FROM arrivals_ordered A 
 INNER JOIN local_connections C 
   ON C.arriving_flight = A.flight 
