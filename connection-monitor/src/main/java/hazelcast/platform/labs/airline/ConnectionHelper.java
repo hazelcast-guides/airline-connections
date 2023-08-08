@@ -5,24 +5,41 @@ import com.hazelcast.client.config.ClientConfig;
 import com.hazelcast.client.config.ClientConnectionStrategyConfig;
 import com.hazelcast.config.SSLConfig;
 import com.hazelcast.core.HazelcastInstance;
+import org.yaml.snakeyaml.Yaml;
 
-import java.io.File;
+import java.io.*;
+import java.util.Map;
 import java.util.Properties;
 
 /**
  * Static methods that help with connecting to a Hazelcast cluster.
  *
- * For Viridian Connections, the following environment variables are required.
+ * If a cluster name is passed to the connect method, it will attempt to access
+ * cluster credentials inside the CLC vault on the local file system under the
+ * ~/.hazelcast directory.  This method can be used to connect to Viridian and
+ * non-Viridian clusters.
+ *
+ * There is also a connect method that takes no arguments.  This method will first
+ * inspect the VIRIDIAN_SECRETS_DIR environment variable and, if present, will
+ * attempt to connect to a Viridian cluster using credentials from the environment
+ * as described below.
  *
  * VIRIDIAN_SECRETS_DIR  The unzipped contents of the file downloaded from the "Advanced" configuration tab
  * VIRIDIAN_CLUSTER_ID
  * VIRIDIAN_DISCOVERY_TOKEN
  * VIRIDIAN_PASSWORD
  *
- * For non-Viridian connections, provide the following environment variables
+ * For non-Viridian connections that are not secured (e.g. local development clusters), use the connect method
+ * with no arguments and provide the following environment variables instead of the 4 above.
  *
  * HZ_SERVERS  A comma separated list of members (e.g. member1:5701,member2:5701)
  * HZ_CLUSTER_NAME  The cluster name
+ *
+ * There are also 2 methods, "configureViridianClientFromEnvironment" and
+ * "configureViridianClientFromLocalVault" that take a ClientConfig instance as a parameter.  If
+ * you wish to add non-default client configurations, you can use one of these methods and
+ * pass a ClientConfig that has already been configured.  These methods will use the passed configuration
+ * as a starting point and only overwrite the necessary configuration options.
  *
  */
 public class ConnectionHelper {
@@ -33,23 +50,34 @@ public class ConnectionHelper {
     private static final String HZ_SERVERS_PROP = "HZ_SERVERS";
     private static final String HZ_CLUSTER_NAME_PROP = "HZ_CLUSTER_NAME";
 
-    public static HazelcastInstance connect(){
-        ClientConfig clientConfig = new ClientConfig();
+    public static  HazelcastInstance connect(){
+        return connect(null);
+    }
+    public static HazelcastInstance connect(String clusterName){
         String message;
-        if (ConnectionHelper.viridianConfigPresent()){
-            ConnectionHelper.configureViridianClientFromEnvironment(clientConfig);
-            message = "Connected to Viridian Cluster: " +
-                    System.getenv(ConnectionHelper.VIRIDIAN_CLUSTER_ID_PROP);
+        ClientConfig clientConfig = new ClientConfig();
+        if (clusterName != null ){
+            if (!configureViridianClientFromLocalVault(clientConfig, clusterName)){
+                throw new RuntimeException("Could not configure connection to cluster " +
+                        clusterName + " from local vault");
+            }
+            message = "Connected to Viridian Cluster: " + clusterName;
         } else {
-            String hzServersProp = getRequiredEnv(HZ_SERVERS_PROP);
-            String []hzServers = hzServersProp.split(",");
-            for (int i = 0; i < hzServers.length; ++i) hzServers[i] = hzServers[i].trim();
+            if (ConnectionHelper.viridianConfigPresent()){
+                ConnectionHelper.configureViridianClientFromEnvironment(clientConfig);
+                message = "Connected to Viridian Cluster: " +
+                        System.getenv(ConnectionHelper.VIRIDIAN_CLUSTER_ID_PROP);
+            } else {
+                String hzServersProp = getRequiredEnv(HZ_SERVERS_PROP);
+                String []hzServers = hzServersProp.split(",");
+                for (int i = 0; i < hzServers.length; ++i) hzServers[i] = hzServers[i].trim();
 
-            String hzClusterName = getRequiredEnv(HZ_CLUSTER_NAME_PROP);
+                String hzClusterName = getRequiredEnv(HZ_CLUSTER_NAME_PROP);
 
-            clientConfig.setClusterName(hzClusterName);
-            for(String server: hzServers) clientConfig.getNetworkConfig().addAddress(server);
-            message = "Connected to cluster [" + hzClusterName + "] at " + hzServersProp;
+                clientConfig.setClusterName(hzClusterName);
+                for(String server: hzServers) clientConfig.getNetworkConfig().addAddress(server);
+                message = "Connected to cluster [" + hzClusterName + "] at " + hzServersProp;
+            }
         }
         clientConfig.getConnectionStrategyConfig().setAsyncStart(false);
         clientConfig.getConnectionStrategyConfig().setReconnectMode(ClientConnectionStrategyConfig.ReconnectMode.ON);
@@ -74,6 +102,35 @@ public class ConnectionHelper {
         String secretsDir = System.getenv(VIRIDIAN_SECRETS_DIR_PROP);
         return secretsDir != null;
     }
+    public static boolean configureViridianClientFromLocalVault(ClientConfig clientConfig, String clusterName){
+        File homeDir = new File(System.getProperty("user.home"));
+        File hazelcastHomeDir = new File(homeDir, ".hazelcast");
+        if (!hazelcastHomeDir.isDirectory())
+            return false;  // RETURN
+
+        File clusterConfigDir = new File(new File(hazelcastHomeDir, "configs"), clusterName);
+        if (!clusterConfigDir.isDirectory())
+            return false; // RETURN
+
+        File configFile = new File(clusterConfigDir, "config.yaml");
+
+        Yaml yaml = new Yaml();
+        try (InputStream inputStream = new FileInputStream(configFile)){
+            Map<String, Object> config = yaml.load(inputStream);
+            Map<String, String> clusterConfig = (Map<String, String>) config.get("cluster");
+            Map<String,String> sslConfig = (Map<String, String>) config.get("ssl");
+            String clusterId = clusterConfig.get("name");
+            String discoveryToken = clusterConfig.get("discovery-token");
+            String password = sslConfig.get("key-password");
+            configureViridian(clusterId, discoveryToken, password, clusterConfigDir.getAbsolutePath(), clientConfig);
+        } catch (IOException e) {
+            // TODO add logging
+            return false;
+        }
+
+        return true;
+    }
+
     public static void configureViridianClientFromEnvironment(ClientConfig clientConfig){
         String secretsDir = getRequiredEnv(VIRIDIAN_SECRETS_DIR_PROP);
         String password = getRequiredEnv(VIRIDIAN_PASSWORD_PROP);

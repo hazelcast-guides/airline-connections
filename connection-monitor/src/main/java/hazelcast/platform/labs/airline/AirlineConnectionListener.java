@@ -19,7 +19,11 @@ import com.hazelcast.query.Predicates;
  */
 public class AirlineConnectionListener {
     public static void main(String []args){
-        HazelcastInstance hz = ConnectionHelper.connect();
+        HazelcastInstance hz;
+        String clusterName = args.length > 0 ? args[0] : null;
+
+        hz = ConnectionHelper.connect(clusterName);
+
         Runtime.getRuntime().addShutdownHook(new Thread(hz::shutdown));
 
         hz.<String,HazelcastJsonValue>getMap("live_connections")
@@ -39,7 +43,6 @@ public class AirlineConnectionListener {
             String departureTime = connection.get("departure_time").asText();
             departureTime = departureTime.substring(departureTime.length() - 4);
             int connectionMinutes = connection.get("connection_minutes").asInt();
-            int mct = connection.get("mct").asInt();
 
             System.out.println(arrivingFlight + " ARRIVING " + arrivalTime + " AT GATE " + arrivalGate + " CONNECTING TO "
                     + departingFlight + " DEPARTING " + departureTime + " FROM GATE " + departureGate + " ("
