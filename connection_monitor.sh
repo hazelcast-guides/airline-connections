@@ -23,5 +23,5 @@
 #
 set -e
 SCRIPTDIR=`dirname $0`
-#source $SCRIPTDIR/.env
+source $SCRIPTDIR/.env
 java -jar connection-monitor/target/connection-monitor-1.0-SNAPSHOT.jar $*

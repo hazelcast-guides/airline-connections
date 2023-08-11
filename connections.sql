@@ -16,7 +16,7 @@
 -- Create mappings to particular topics/tables using those data connections.
 --
 CREATE OR REPLACE MAPPING "departures"
-EXTERNAL NAME "viridiantrial.flights.departures" (
+EXTERNAL NAME "demo.flights.departures" (
   event_time timestamp with time zone,
   "day" date,
   flight varchar,
@@ -24,7 +24,7 @@ EXTERNAL NAME "viridiantrial.flights.departures" (
   departure_gate varchar,
   departure_time timestamp
 )
-DATA CONNECTION "ViridianTrialKafka"
+DATA CONNECTION "DemoKafkaConnection"
 OPTIONS (
     'keyFormat' = 'varchar',
     'valueFormat' = 'json-flat'
@@ -32,7 +32,7 @@ OPTIONS (
 
 
 CREATE OR REPLACE MAPPING "arrivals"
-EXTERNAL NAME "viridiantrial.flights.arrivals" (
+EXTERNAL NAME "demo.flights.arrivals" (
   event_time timestamp with time zone,
   "day" date,
   flight varchar,
@@ -40,7 +40,7 @@ EXTERNAL NAME "viridiantrial.flights.arrivals" (
   arrival_gate varchar,
   arrival_time timestamp 
 )
-DATA CONNECTION "ViridianTrialKafka"
+DATA CONNECTION "DemoKafkaConnection"
 OPTIONS (
     'keyFormat' = 'varchar',
     'valueFormat' = 'json-flat'
@@ -73,7 +73,7 @@ EXTERNAL NAME "public"."connections" (
   arriving_flight varchar,
   departing_flight varchar
 )
-DATA CONNECTION "ViridianTrialPostgres";
+DATA CONNECTION "DemoPostgresConnection";
 
 CREATE OR REPLACE MAPPING "minimum_connection_times"
 EXTERNAL NAME "public"."minimum_connection_times" (
@@ -82,7 +82,7 @@ EXTERNAL NAME "public"."minimum_connection_times" (
   departure_terminal varchar,
   minutes integer
 )
-DATA CONNECTION "ViridianTrialPostgres";
+DATA CONNECTION "DemoPostgresConnection";
 
 
 --  copy mct and connection data from Postgres into IMaps

@@ -34,7 +34,9 @@ When you launch the demo in Viridian, you may see a step-by-step guide appear in
 Before starting this tutorial, make sure that you meet the following prerequisites:
 
 * You have a running cluster in Viridian Trial
-* You've downloade and connected the Command Line Client to your cluster
+* You've downloaded and connected the Command Line Client to your cluster
+* For the client, you will need Java 11 or greater
+* (Optional) Java IDE to view client code
 
 == Step 1. Review What's Already Set Up
 
@@ -173,9 +175,28 @@ OPTIONS (
   'valueFormat' = 'json-flat'
 );
 ```
+== Step 2. Build and Test JOIN
+Now that the storage framework and streaming maps are set up, now we can look at the actual data streams.
+
+. Examine the data in the `arrivals` and `departures` streams.
+```sql
+SELECT * FROM arrivals;
+```
+```sql
+SELECT * FROM departures;
+```
+. When you are dealing with streaming data, you need to accommodate the possibility that data will arrive late or not at all. You do not want these late or missing events to slow down your jobs. In order to prevent this, you will use an IMPOSE_ORDER statement to define a threshold (lag) for how late events can be before they are ignored. 
+
+Because you will be using this ordered data in a subsequent JOIN statement, you need to create a view that holds the ordered data. In this demo, both the arrivals and departures data needs to be ordered. The departures data is already done, so run this code to impose order on the arrivals data.
 
 
-== Step 2. Run Through the Demo/Tutorial
+[#submit-job]
+== Step 3. Command Line Client setup
+. If you have not already set up the Command Line Client, 
+
+== Step 4. Submit Job
+
+== Step 4. Download and Run Client
 
 
 
