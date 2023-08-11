@@ -201,7 +201,7 @@ SELECT * FROM TABLE (
   )
 );
 ```
-
+[#CLC_setup]
 == Step 3. Command Line Client setup
 If you have not already set up the Command Line Client (CLC), you need to do so now. If you already have it set up, skip to xref:Submit-Job[Step 4. Submit Job].
 
