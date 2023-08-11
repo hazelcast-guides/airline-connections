@@ -18,7 +18,7 @@
 
 This demo/tutorial creates an application that uses streaming data about flight arrival and departure times, and correlates it with stored data about connecting flights, airport gates, and gate-to-gate travel times to determine whether there's enough time to make a particular flight connection. 
 
-image:AirlineConnectionIntro.jpg[]
+image:../images/AirlineConnectionIntro.jpg[Connections Diagram]
 
 Specifically, you will learn how to
 * Connect to external data sources and sinks
@@ -51,7 +51,7 @@ The pre-set configuration includes the following elements:
 
 The best way to build connections to external sources is to use the Connection Wizard. The wizard walks you through the steps of connecting to the external data source, then setting up the mapping so that the external data is available to the Hazelcast SQL engine
 
-image:connectwiz.gif[]
+image:../images/connectwiz.gif[Walkthrough of Connection Wizard]
 
 The SQL code for each element is below.
 
@@ -179,22 +179,40 @@ OPTIONS (
 Now that the storage framework and streaming maps are set up, now we can look at the actual data streams.
 
 . Examine the data in the `arrivals` and `departures` streams.
++
 ```sql
 SELECT * FROM arrivals;
 ```
++
 ```sql
 SELECT * FROM departures;
 ```
 . When you are dealing with streaming data, you need to accommodate the possibility that data will arrive late or not at all. You do not want these late or missing events to slow down your jobs. In order to prevent this, you will use an IMPOSE_ORDER statement to define a threshold (lag) for how late events can be before they are ignored. 
-
++
 Because you will be using this ordered data in a subsequent JOIN statement, you need to create a view that holds the ordered data. In this demo, both the arrivals and departures data needs to be ordered. The departures data is already done, so run this code to impose order on the arrivals data.
++
+```sql
+CREATE OR REPLACE VIEW arrivals_ordered AS
+SELECT * FROM TABLE (
+  IMPOSE_ORDER(
+     TABLE arrivals, 
+     DESCRIPTOR(event_time),  
+     INTERVAL '1' HOUR
+  )
+);
+```
 
-
-[#submit-job]
 == Step 3. Command Line Client setup
-. If you have not already set up the Command Line Client, 
+If you have not already set up the Command Line Client (CLC), you need to do so now. If you already have it set up, skip to xref:Submit-Job[Step 4. Submit Job].
+
+. Click on the Dashboard icon on the left of your screen.
+
+. Select the CLI icon.
+
+. Follow the steps 
 
 == Step 4. Submit Job
+
 
 == Step 4. Download and Run Client
 
