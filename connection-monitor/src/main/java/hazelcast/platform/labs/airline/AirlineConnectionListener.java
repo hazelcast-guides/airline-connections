@@ -11,10 +11,16 @@ import com.hazelcast.map.listener.EntryUpdatedListener;
 import com.hazelcast.query.Predicates;
 
 /*
- * The Hazelcast connection is configured using environment variables.  See ConnectionHelper for details.
+ * The Hazelcast connection is configured by providing the name of a cluster that has been
+ * imported into clc with the "clc config import" or "clc viridian import-config" command.
+ *
+ * NOTE: The configuration must have been imported using clc version 5.3.3 or later. If the
+ *       configuration was imported with an earlier version of clc it will need to be re-imported.
+ *
+ * See ConnectionHelper for more details on how configuring connections works.
  *
  * This program creates a listener on the "live_connections" map for connections where the
- * connection time is less than the minimum connection time.
+ * connection time is less than the minimum connection time (connect_status = 'AT RISK')
  *
  */
 public class AirlineConnectionListener {

@@ -1,28 +1,31 @@
 package hazelcast.platform.labs.airline;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hazelcast.client.HazelcastClient;
 import com.hazelcast.client.config.ClientConfig;
 import com.hazelcast.client.config.ClientConnectionStrategyConfig;
 import com.hazelcast.config.SSLConfig;
 import com.hazelcast.core.HazelcastInstance;
-import org.yaml.snakeyaml.Yaml;
 
-import java.io.*;
-import java.util.Map;
+import java.io.File;
+import java.io.IOException;
 import java.util.Properties;
 
 /**
  * Static methods that help with connecting to a Hazelcast cluster.
  *
- * If a cluster name is passed to the connect method, it will attempt to access
+ * If a Viridian cluster name is passed to the connect method, it will attempt to access
  * cluster credentials inside the CLC vault on the local file system under the
- * ~/.hazelcast directory.  This method can be used to connect to Viridian and
- * non-Viridian clusters.
+ * ~/.hazelcast directory (or %HOMEDRIVE%:%HOMEPATH%\AppData\Roaming\Hazelcast on
+ * Windows).  The cluster name you pass to this method must match the one passed to "clc viridian import-config"
+ * or to "clc config import". NOTE: This method requires that the configuration be imported using CLC
+ * version 5.3.3 or later.  It does not work with non-production Viridian environments.
  *
  * There is also a connect method that takes no arguments.  This method will first
  * inspect the VIRIDIAN_SECRETS_DIR environment variable and, if present, will
  * attempt to connect to a Viridian cluster using credentials from the environment
- * as described below.
+ * using the variables described below.
  *
  * VIRIDIAN_SECRETS_DIR  The unzipped contents of the file downloaded from the "Advanced" configuration tab
  * VIRIDIAN_CLUSTER_ID
@@ -57,10 +60,7 @@ public class ConnectionHelper {
         String message;
         ClientConfig clientConfig = new ClientConfig();
         if (clusterName != null ){
-            if (!configureViridianClientFromLocalVault(clientConfig, clusterName)){
-                throw new RuntimeException("Could not configure connection to cluster " +
-                        clusterName + " from local vault");
-            }
+            configureViridianClientFromLocalVault(clientConfig, clusterName);
             message = "Connected to Viridian Cluster: " + clusterName;
         } else {
             if (ConnectionHelper.viridianConfigPresent()){
@@ -102,33 +102,35 @@ public class ConnectionHelper {
         String secretsDir = System.getenv(VIRIDIAN_SECRETS_DIR_PROP);
         return secretsDir != null;
     }
-    public static boolean configureViridianClientFromLocalVault(ClientConfig clientConfig, String clusterName){
+
+    public static void configureViridianClientFromLocalVault(ClientConfig clientConfig, String clusterName){
         File homeDir = new File(System.getProperty("user.home"));
-        File hazelcastHomeDir = new File(homeDir, ".hazelcast");
+        String os = System.getProperty("os.name");
+        File hazelcastHomeDir;
+        if (os.toLowerCase().contains("windows")){
+            hazelcastHomeDir = new File(new File(new File(homeDir, "AppData"), "Roaming"), "Hazelcast");
+        } else {
+            hazelcastHomeDir = new File(homeDir, ".hazelcast");
+        }
         if (!hazelcastHomeDir.isDirectory())
-            return false;  // RETURN
+            throw new RuntimeException("The Hazelcast settings directory, " + hazelcastHomeDir.getAbsolutePath() + " does not exist");
 
         File clusterConfigDir = new File(new File(hazelcastHomeDir, "configs"), clusterName);
         if (!clusterConfigDir.isDirectory())
-            return false; // RETURN
+            throw new RuntimeException("Did not find expected configuration at " + clusterConfigDir.getAbsolutePath());
 
-        File configFile = new File(clusterConfigDir, "config.yaml");
+        File configFile = new File(clusterConfigDir, "config.json");
 
-        Yaml yaml = new Yaml();
-        try (InputStream inputStream = new FileInputStream(configFile)){
-            Map<String, Object> config = yaml.load(inputStream);
-            Map<String, String> clusterConfig = (Map<String, String>) config.get("cluster");
-            Map<String,String> sslConfig = (Map<String, String>) config.get("ssl");
-            String clusterId = clusterConfig.get("name");
-            String discoveryToken = clusterConfig.get("discovery-token");
-            String password = sslConfig.get("key-password");
+        ObjectMapper mapper = new ObjectMapper();
+        try {
+            JsonNode root =  mapper.readTree(configFile);
+            String clusterId = root.get("cluster").get("name").asText();
+            String discoveryToken = root.get("cluster").get("discovery-token").asText();
+            String password = root.get("ssl").get("key-password").asText();
             configureViridian(clusterId, discoveryToken, password, clusterConfigDir.getAbsolutePath(), clientConfig);
-        } catch (IOException e) {
-            // TODO add logging
-            return false;
+        } catch(IOException x){
+            throw new RuntimeException("An error occurred while parsing " + configFile.getAbsolutePath(), x);
         }
-
-        return true;
     }
 
     public static void configureViridianClientFromEnvironment(ClientConfig clientConfig){

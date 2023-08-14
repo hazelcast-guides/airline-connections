@@ -10,8 +10,8 @@
 -- CLC> \viridian import-config mycluster
 --
 --
--- This script assume that a Kafka connection called "ViridianTrialKafka" and 
--- a Postgres connection called "ViridianTrialPostgres" already exist.
+-- This script assume that a Kafka connection called "DemoKafkaConnection" and 
+-- a Postgres connection called "DemoPostgresConnection" already exist.
 --
 -- Create mappings to particular topics/tables using those data connections.
 --
