@@ -35,7 +35,9 @@ Before starting this tutorial, make sure that you meet the following prerequisit
 
 * You have a running cluster in Viridian Trial
 * You've downloaded and connected the Command Line Client to your cluster
-* For the client, you will need Java 11 or greater
+* For the client, you will need
+** Java 11 or greater
+** Maven 3.9.0 or geater
 * (Optional) Java IDE to view client code
 
 == Step 1. Review What's Already Set Up
@@ -176,7 +178,7 @@ OPTIONS (
 );
 ```
 == Step 2. Build and Test JOIN
-Now that the storage framework and streaming maps are set up, now we can look at the actual data streams.
+Now that the storage framework and streaming maps are set up, you can look at the actual data streams.
 
 . Examine the data in the `arrivals` and `departures` streams.
 +
@@ -187,9 +189,9 @@ SELECT * FROM arrivals;
 ```sql
 SELECT * FROM departures;
 ```
-. When you are dealing with streaming data, you need to accommodate the possibility that data will arrive late or not at all. You do not want these late or missing events to slow down your jobs. In order to prevent this, you will use an IMPOSE_ORDER statement to define a threshold (lag) for how late events can be before they are ignored. 
+. When you are dealing with streaming data, you need to accommodate the possibility that data will arrive late or not at all. You do not want these late or missing events to slow down your jobs. In order to prevent this, you will use an `IMPOSE_ORDER` statement to define a threshold (lag) for how late events can be before they are ignored. 
 +
-Because you will be using this ordered data in a subsequent JOIN statement, you need to create a view that holds the ordered data. In this demo, both the arrivals and departures data needs to be ordered. The departures data is already done, so run this code to impose order on the arrivals data.
+Because you will be using this ordered data in a subsequent `JOIN` statement, you need to create a view that holds the ordered data. In this demo, both the arrivals and departures data needs to be ordered. The departures data is already done, so run this code to impose order on the arrivals data.
 +
 ```sql
 CREATE OR REPLACE VIEW arrivals_ordered AS
@@ -197,27 +199,137 @@ SELECT * FROM TABLE (
   IMPOSE_ORDER(
      TABLE arrivals, 
      DESCRIPTOR(event_time),  
-     INTERVAL '1' HOUR
+     INTERVAL '0.5' SECONDS
   )
 );
 ```
+. You can look at the ordered data. It should be identical to the unordered stream, unless a message arrives later than the configured delay window.
++
+```sql
+SELECT * FROM arrivals_ordered;
+```
+. You have all your data - now you need to put it all together so you can determine whether there’s enough time between flights to make a connection. Using SQL `JOIN` statements, you can join data on related fields. When joining two data streams, the related data is usually timestamp, so that individual events from different streams can be placed into the appropriate time context. These timebound `JOIN` statements include an aggregation window. Hazelcast buffers events until the window duration is reached, then processes the data in the buffer. Subsequent events go into the next buffer until the duration is reached again, and so on.
++
+```sql
+SELECT 
+  C.arriving_flight || C.departing_flight, -- concatenate arriving flight and departing flight numbers as record key
+  C.arriving_flight,
+  A.arrival_gate, 
+  A.arrival_time, 
+  C.departing_flight, 
+  D.departure_gate, 
+  D.departure_time,
+  CAST((EXTRACT(EPOCH FROM D.departure_time) - EXTRACT(EPOCH FROM A.arrival_time))/60 AS INTEGER) AS connection_minutes, -- calculates actual time between arrival and departure
+  M.minutes as mct ,
+    CASE -- sets flag of "AT RISK" if MCT is less than actual connection time
+    WHEN CAST((EXTRACT(EPOCH FROM D.departure_time) - EXTRACT(EPOCH FROM A.arrival_time))/60 AS INTEGER) < M.minutes THEN 'AT RISK'
+    ELSE 'OK'
+FROM arrivals_ordered A 
+INNER JOIN local_connections C 
+  ON C.arriving_flight = A.flight -- matches arriving flight data from stream to arriving flight in connections table
+INNER JOIN departures_ordered D
+  ON D.event_time BETWEEN A.event_time - INTERVAL '10' SECONDS AND A.event_time + INTERVAL '10' SECONDS -- sets JOIN window to match arrival/departure flight updates that occur within a 20 second window
+  AND D.flight = C.departing_flight -- matches departing flight data from stream to departing flight in connections table
+INNER JOIN local_mct M
+  ON A.airport = M.airport -- matches airport from arriving flight to records in minimum connection time table
+  AND SUBSTRING(A.arrival_gate FROM 1 FOR 1) = M.arrival_terminal -- extracts arrival gate information
+  AND SUBSTRING(D.departure_gate FROM 1 FOR 1) = M.departure_terminal -- extracts departure gate information
+```
+. Stop the query and examine the output. 
+
 [#CLC_setup]
 == Step 3. Command Line Client setup
 If you have not already set up the Command Line Client (CLC), you need to do so now. If you already have it set up, skip to xref:Submit-Job[Step 4. Submit Job].
 
 . Click on the Dashboard icon on the left of your screen.
+image:../images/dashboard_icon.jpg[Dashboard icon]
 
 . Select the CLI icon.
+image:../images/cli_icon.jpg[CLI icon]
 
-. Follow the steps 
+. Follow the steps on the screen to download the CLC and the configuration for your cluster.
+image:../images/cli_setup_window.jpg[CLI setup window]
 
 == Step 4. Submit Job
+Up to this point, you've used the SQL browser to run commands. This is useful for development and testing purposes, but in most production environments, you'll create SQL scripts that you then submit to the cluster to run as jobs, using the CLC.
 
+. Clone https://github.com/hazelcast-guides/airline-connections[the GitHub repo] for this tutorial. 
 
-== Step 4. Download and Run Client
+. Change to the local directory for the repo.
 
+. Review the contents of the file `connections_job.sql`. You can use any text editor or the Linux `more` command.
++
+```shell
+more connections_job.sql
+```
++
+[NOTE]
+====
+The `JOIN` part of this file is identical to the code you ran at the end of xref:Build-and-Test-JOIN[Step 2: Build and Test JOIN]. The new code is at the beginning; instead of writing the search output to the screen, the output is stored in an IMap called `live_connections`.
+====
 
+. To submit the script in non-interactive mode, use the following command.
++
+```shell
+clc -c <your-cloud-config> script connections_job.sql
+```
++
+If you already have CLC open, you can submit the script from the CLC> prompt.
++
+```shell
+\script connections_job.sql
+```
 
+[WARNING]
+====
+Hello Hazelcast testers! If you're running your cluster in dev.viridian or dev2.viridian, you'll need to add the HZ_CLOUD_COORDINATOR_BASE_URL=https://api.dev2.viridian.hazelcast.cloud at the beginning of clc commands. This will go away once we're in production.
+====
+. Go to the dashboard for your cluster and open Management Center.
+. In Management Center, select Stream Processing > Jobs. You should see a job called `update_connections`. Click on the job name to view processing statistics and the DAG for this job.
+. In either the SQL browser tab or the CLC, view the contents of the IMap that stores the output of the job.
++
+```sql
+SELECT * FROM live_connections;
+```
+
+[NOTE]
+====
+Because you are searching the contents of an IMap, the results of the above `SELECT` are a "one and done" search. If you run the search multiple times, you will see different results, as the job is continuously updating the IMap. Your search will always display the latest data available _at the time of the search_.
+====
+== Step 5. Run Client
+The connection data is now stored in Hazelcast and is being continually updated. Now let's make that data available to the end application that will use it. 
+
+We've created a Java client that implements the Hazelcast `map_listener` function. The client connects to Hazelcast, retrieves the contents of the `update_connections` IMap, then updates the information any time there's a change to the IMap. The default is to load the entire map, but you can also run the application with a specific pair of flights to monitor only that connection status.
+
+image:../images/client_diagram.jpg[Client diagram]
+
+. Build the connection_monitor app using Maven.
++
+```shell
+cd connection-monitor
+mvn clean package 
+cd ..
+```
+. To add the cluster-specific environmental data, start by copying `sample.env` to `.env`
++
+```shell
+cp sample.env .env
+```
+. In your Viridian cluster dashboard, select the Java icon.
++
+image:../images/java_icon.jpg[Java icon]
+
+. At the top of the screen, select Advanced Setup
++
+image:../images/advanced_setup.jpg[advanced setup]
+
+. Download and unzip the keystore file. Make a note of the location.
+. Edit the `.env` file. Set `VIRIDIAN_SECRETS_DIR` to the location of the unzipped keystore directory. Copy the other values from the Advanced Setup screen into `.env`
+. Run the `connection-monitor`.
+```shell
+./connection-monitor.sh
+```
+. 
 == Summary
 
 ////
