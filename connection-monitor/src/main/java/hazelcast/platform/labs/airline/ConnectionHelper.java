@@ -126,8 +126,9 @@ public class ConnectionHelper {
             JsonNode root =  mapper.readTree(configFile);
             String clusterId = root.get("cluster").get("name").asText();
             String discoveryToken = root.get("cluster").get("discovery-token").asText();
+            String apiBase = root.get("cluster").get("api-base").asText();
             String password = root.get("ssl").get("key-password").asText();
-            configureViridian(clusterId, discoveryToken, password, clusterConfigDir.getAbsolutePath(), clientConfig);
+            configureViridian(clusterId, discoveryToken, password, clusterConfigDir.getAbsolutePath(), apiBase, clientConfig);
         } catch(IOException x){
             throw new RuntimeException("An error occurred while parsing " + configFile.getAbsolutePath(), x);
         }
@@ -138,10 +139,19 @@ public class ConnectionHelper {
         String password = getRequiredEnv(VIRIDIAN_PASSWORD_PROP);
         String clusterId = getRequiredEnv(VIRIDIAN_CLUSTER_ID_PROP);
         String discoveryToken = getRequiredEnv(VIRIDIAN_DISCOVERY_TOKEN_PROP);
-        configureViridian(clusterId, discoveryToken, password, secretsDir, clientConfig);
+        configureViridian(clusterId, discoveryToken, password, secretsDir, null, clientConfig);
     }
 
-    public static void configureViridian(String clusterId, String discoveryToken, String password, String secretsDir, ClientConfig clientConfig){
+    public static void configureViridian(
+            String clusterId,
+            String discoveryToken,
+            String password,
+            String secretsDir,
+            String apiBase,
+            ClientConfig clientConfig){
+        if (apiBase == null)
+            apiBase = "https://api.viridian.hazelcast.com";
+
         File configDir = new File(secretsDir);
         if (!configDir.isDirectory()){
             throw new RuntimeException("Could not initialize Viridian connection because the given secrets directory (" + secretsDir + ") does not exist or is not a directory.");
@@ -164,7 +174,7 @@ public class ConnectionHelper {
 
         clientConfig.getNetworkConfig().setSSLConfig(new SSLConfig().setEnabled(true).setProperties(props));
         clientConfig.getNetworkConfig().getCloudConfig().setEnabled(true).setDiscoveryToken(discoveryToken);
-        clientConfig.setProperty("hazelcast.client.cloud.url", "https://api.viridian.hazelcast.com");
+        clientConfig.setProperty("hazelcast.client.cloud.url", apiBase);
         clientConfig.setClusterName(clusterId);
     }
 }
