@@ -15,10 +15,12 @@ import java.util.Properties;
 /**
  * Static methods that help with connecting to a Hazelcast cluster.
  *
- * If a cluster name is passed to the connect method, it will attempt to access
+ * If a Viridian cluster name is passed to the connect method, it will attempt to access
  * cluster credentials inside the CLC vault on the local file system under the
  * ~/.hazelcast directory (or %HOMEDRIVE%:%HOMEPATH%\AppData\Roaming\Hazelcast on
- * Windows).
+ * Windows).  The cluster name you pass to this method must match the one passed to "clc viridian import-config"
+ * or to "clc config import". NOTE: This method requires that the configuration be imported using CLC
+ * version 5.3.3 or later.  It does not work with non-production Viridian environments.
  *
  * There is also a connect method that takes no arguments.  This method will first
  * inspect the VIRIDIAN_SECRETS_DIR environment variable and, if present, will
@@ -58,10 +60,7 @@ public class ConnectionHelper {
         String message;
         ClientConfig clientConfig = new ClientConfig();
         if (clusterName != null ){
-            if (!configureViridianClientFromLocalVault(clientConfig, clusterName)){
-                throw new RuntimeException("Could not configure connection to cluster " +
-                        clusterName + " from local vault");
-            }
+            configureViridianClientFromLocalVault(clientConfig, clusterName);
             message = "Connected to Viridian Cluster: " + clusterName;
         } else {
             if (ConnectionHelper.viridianConfigPresent()){
@@ -104,7 +103,7 @@ public class ConnectionHelper {
         return secretsDir != null;
     }
 
-    public static boolean configureViridianClientFromLocalVault(ClientConfig clientConfig, String clusterName){
+    public static void configureViridianClientFromLocalVault(ClientConfig clientConfig, String clusterName){
         File homeDir = new File(System.getProperty("user.home"));
         String os = System.getProperty("os.name");
         File hazelcastHomeDir;
@@ -114,11 +113,11 @@ public class ConnectionHelper {
             hazelcastHomeDir = new File(homeDir, ".hazelcast");
         }
         if (!hazelcastHomeDir.isDirectory())
-            return false;  // RETURN
+            throw new RuntimeException("The Hazelcast settings directory, " + hazelcastHomeDir.getAbsolutePath() + " does not exist");
 
         File clusterConfigDir = new File(new File(hazelcastHomeDir, "configs"), clusterName);
         if (!clusterConfigDir.isDirectory())
-            return false; // RETURN
+            throw new RuntimeException("Did not find expected configuration at " + clusterConfigDir.getAbsolutePath());
 
         File configFile = new File(clusterConfigDir, "config.json");
 
@@ -130,11 +129,8 @@ public class ConnectionHelper {
             String password = root.get("ssl").get("key-password").asText();
             configureViridian(clusterId, discoveryToken, password, clusterConfigDir.getAbsolutePath(), clientConfig);
         } catch(IOException x){
-            // TODO add logging
-            return false;
+            throw new RuntimeException("An error occurred while parsing " + configFile.getAbsolutePath(), x);
         }
-
-        return true;
     }
 
     public static void configureViridianClientFromEnvironment(ClientConfig clientConfig){
