@@ -9,7 +9,7 @@
 #
 # Set Up the Connection
 #    copy "sample.env" to ".env" 
-#    in the Viridian client, click on  Connect Client/ Java / Advanced Setup
+#    in the Viridian dashboard, click on  Java / Advanced Setup
 #    download the keystore file and unzup it (anywhere) 
 #    in ".env" set VIRIDIAN_SECRETS_DIR to the unzipped keystore directory 
 #    copy the other values from the Advance Setup screen into .env
