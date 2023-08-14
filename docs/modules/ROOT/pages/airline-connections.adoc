@@ -26,6 +26,7 @@ Specifically, you will learn how to
 * Use SQL import data from an external database
 * Configure late event handling for streaming data
 * Join streaming and stored data to generate continually-updated results
+* Submit a job to Viridian using the Command Line Client
 
 When you launch the demo in Viridian, you may see a step-by-step guide appear in conjunction with the demo. This tutorial is designed to supplement that guide, providing additional context and detail as well as links to reference materials. 
 
@@ -250,6 +251,11 @@ image:../images/cli_icon.jpg[CLI icon]
 . Follow the steps on the screen to download the CLC and the configuration for your cluster.
 image:../images/cli_setup_window.jpg[CLI setup window]
 
+[WARNING]
+====
+_Hello Hazelcast testers!_ Use the 5.3.3_PREVIEW1 version of CLC, available https://github.com/hazelcast/hazelcast-commandline-client/releases[here].
+====
+
 == Step 4. Submit Job
 Up to this point, you've used the SQL browser to run commands. This is useful for development and testing purposes, but in most production environments, you'll create SQL scripts that you then submit to the cluster to run as jobs, using the CLC.
 
@@ -280,10 +286,6 @@ If you already have CLC open, you can submit the script from the CLC> prompt.
 \script connections_job.sql
 ```
 
-[WARNING]
-====
-Hello Hazelcast testers! If you're running your cluster in dev.viridian or dev2.viridian, you'll need to add the HZ_CLOUD_COORDINATOR_BASE_URL=https://api.dev2.viridian.hazelcast.cloud at the beginning of clc commands. This will go away once we're in production.
-====
 . Go to the dashboard for your cluster and open Management Center.
 . In Management Center, select Stream Processing > Jobs. You should see a job called `update_connections`. Click on the job name to view processing statistics and the DAG for this job.
 . In either the SQL browser tab or the CLC, view the contents of the IMap that stores the output of the job.
@@ -299,44 +301,38 @@ Because you are searching the contents of an IMap, the results of the above `SEL
 == Step 5. Run Client
 The connection data is now stored in Hazelcast and is being continually updated. Now let's make that data available to the end application that will use it. 
 
-We've created a Java client that implements the Hazelcast `map_listener` function. The client connects to Hazelcast, retrieves the contents of the `update_connections` IMap, then updates the information any time there's a change to the IMap. The default is to load the entire map, but you can also run the application with a specific pair of flights to monitor only that connection status.
+We've created a Java client that implements the Hazelcast `map_listener` function. The client connects to Hazelcast, retrieves the contents of the `update_connections` IMap, then updates the information any time there's a change to the IMap.
 
 image:../images/client_diagram.jpg[Client diagram]
 
-. Build the connection_monitor app using Maven.
+. Issue the following commands to build and launch the connection monitor application, replacing `<cluster-name>` with the name of the CLC cluster configuration.
 +
 ```shell
 cd connection-monitor
-mvn clean package 
-cd ..
+mvn clean package exec:java -Dexec.mainClass=hazelcast.platform.labs.airline.AirlineConnectionListener -Dexec.args=<cluster-name>
 ```
-. To add the cluster-specific environmental data, start by copying `sample.env` to `.env`
-+
-```shell
-cp sample.env .env
-```
-. In your Viridian cluster dashboard, select the Java icon.
-+
-image:../images/java_icon.jpg[Java icon]
-
-. At the top of the screen, select Advanced Setup
-+
-image:../images/advanced_setup.jpg[advanced setup]
-
-. Download and unzip the keystore file. Make a note of the location.
-. Edit the `.env` file. Set `VIRIDIAN_SECRETS_DIR` to the location of the unzipped keystore directory. Copy the other values from the Advanced Setup screen into `.env`
-. Run the `connection-monitor`.
-```shell
-./connection-monitor.sh
-```
-. 
+. Press CTRL+C to terminate the client connection. 
+. (Optional) Open the Java file in your favorite IDE to review the client code.
 == Summary
 
 ////
 Summarise what knowledge the reader has gained by completing the tutorial, including a summary of each step's goals (this is a good way to validate whether your tutorial has covered all you need it to.)
 ////
+In this tutorial/demo, you learned how to:
+
+* Connect to external data sources and sinks
+* Use SQL to search and display streaming data
+* Use SQL import data from an external database
+* Configure late event handling for streaming data
+* Join streaming and stored data to generate continually-updated results
+* Submit a job to Viridian using the Command Line Client
 
 
 == See Also
 
 // Optionally, add some links to resources, such as other related guides.
+* https://docs.hazelcast.com/hazelcast/latest/sql/create-data-connection[Create Data Connections]
+* https://docs.hazelcast.com/hazelcast/latest/sql/sql-overview#mappings[Create Mappings]
+* https://docs.hazelcast.com/hazelcast/latest/sql/querying-streams#late-events[Handling Late Events]
+* https://docs.hazelcast.com/hazelcast/latest/sql/querying-streams#joins[Stream-to-Stream Joins]
+* https://docs.hazelcast.com/clc/latest/overview[Hazelcast CLC Overview]
