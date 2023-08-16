@@ -305,7 +305,7 @@ The connection data is now stored in Hazelcast and is being continually updated.
 
 We've created a Java client that implements the Hazelcast `map_listener` function. The client connects to Hazelcast, retrieves the contents of the `update_connections` IMap, then updates the information any time there's a change to the IMap.
 
-image:../images/client_diagram.jpg[Client diagram]
+image:../images/client_diagram.jpg[Client diagram,400]
 
 . Issue the following commands to build and launch the connection monitor application, replacing `<cluster-name>` with the name of the CLC cluster configuration.
 +
