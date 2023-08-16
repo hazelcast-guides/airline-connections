@@ -243,10 +243,12 @@ INNER JOIN local_mct M
 If you have not already set up the Command Line Client (CLC), you need to do so now. If you already have it set up, skip to xref:Submit-Job[Step 4. Submit Job].
 
 . Click on the Dashboard icon on the left of your screen.
-image:../images/dashboard_icon.jpg[Dashboard icon]
+
+image:../images/dashboard_icon.jpg[Dashboard icon,100]
 
 . Select the CLI icon.
-image:../images/cli_icon.jpg[CLI icon]
+
+image:../images/cli_icon.jpg[CLI icon,130]
 
 . Follow the steps on the screen to download the CLC and the configuration for your cluster.
 image:../images/cli_setup_window.jpg[CLI setup window]
