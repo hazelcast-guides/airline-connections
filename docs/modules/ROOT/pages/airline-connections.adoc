@@ -324,6 +324,20 @@ image:../images/client_diagram.jpg[Client diagram,400]
 cd connection-monitor
 mvn clean package exec:java -Dexec.mainClass=hazelcast.platform.labs.airline.AirlineConnectionListener -Dexec.args=<cluster-name>
 ```
++
+[WARNING]
+====
+Hello Hazelcast testers! If you get an error regarding keystores with the above command, follow these steps:
+
+* Go to your Viridian cluster dashboard and select the Java client icon
+* Under "Advanced Setup", select "Download keystore file".
+* Find your CLC home directory with `clc home`.
+* Copy the zipped keystore to `$CLC_HOME/configs/<your cluster name>`
+* Unzip the keystore
+* Go back to the `connection-monitor` directory and try again.
+
+Don't worry - customers won't have to do this; the next sprint will fix it so the keystore is downloaded with every config, not just Java.
+====
 . Press CTRL+C to terminate the client connection. 
 . (Optional) Open the Java file in your favorite IDE to review the client code.
 
