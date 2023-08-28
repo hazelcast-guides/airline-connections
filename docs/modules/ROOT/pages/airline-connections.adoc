@@ -21,6 +21,7 @@ This demo/tutorial creates an application that uses streaming data about flight 
 image:../images/AirlineConnectionIntro.jpg[Connections Diagram]
 
 Specifically, you will learn how to
+
 * Connect to external data sources and sinks
 * Use SQL to search and display streaming data
 * Use SQL import data from an external database
