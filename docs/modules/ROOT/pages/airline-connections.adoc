@@ -9,7 +9,7 @@
 :page-lang: sql, java 
 :page-enterprise: 
 :page-est-time: 20 mins 
-:description: This tutorial provides detailed information and instruction for the Airline Connections demo built in to Viridian Trial.  
+:description: This tutorial provides detailed information and instructions for the Airline Connections demo built in to Viridian Trial.  
 
 {description}
 
@@ -24,9 +24,9 @@ Specifically, you will learn how to
 
 * Connect to external data sources and sinks
 * Use SQL to search and display streaming data
-* Use SQL import data from an external database
+* Use SQL to import data from an external database
 * Configure late event handling for streaming data
-* Join streaming and stored data to generate continually-updated results
+* Join streaming and stored data to generate continually updated results
 * Submit a job to Viridian using the Command Line Client
 
 When you launch the demo in Viridian, you may see a step-by-step guide appear in conjunction with the demo. This tutorial is designed to supplement that guide, providing additional context and detail as well as links to reference materials. 
@@ -143,9 +143,9 @@ OPTIONS (
 ```
 Import Postgres data into local storage:
 ```sql
---In order to ensure a clean write, we make sure the map is empty
+--To ensure a clean write, we make sure the map is empty
 DELETE FROM local_mct;
---now we copy all the data from the external store
+--Now we copy all the data from the external store
 INSERT INTO local_mct(__key, airport, arrival_terminal, departure_terminal, minutes) 
 SELECT airport||arrival_terminal||departure_terminal, airport, arrival_terminal, departure_terminal, minutes 
 FROM minimum_connection_times;
@@ -191,7 +191,7 @@ SELECT * FROM arrivals;
 ```sql
 SELECT * FROM departures;
 ```
-. When you are dealing with streaming data, you need to accommodate the possibility that data will arrive late or not at all. You do not want these late or missing events to slow down your jobs. In order to prevent this, you will use an `IMPOSE_ORDER` statement to define a threshold (lag) for how late events can be before they are ignored. 
+. When you are dealing with streaming data, you need to accommodate the possibility that data will arrive late or not at all. You do not want these late or missing events to slow down your jobs. To prevent this, you will use an `IMPOSE_ORDER` statement to define a threshold (lag) for how late events can be before they are ignored. 
 +
 Because you will be using this ordered data in a subsequent `JOIN` statement, you need to create a view that holds the ordered data. In this demo, both the arrivals and departures data needs to be ordered. The departures data is already done, so run this code to impose order on the arrivals data.
 +
@@ -210,7 +210,7 @@ SELECT * FROM TABLE (
 ```sql
 SELECT * FROM arrivals_ordered;
 ```
-. You have all your data - now you need to put it all together so you can determine whether there’s enough time between flights to make a connection. Using SQL `JOIN` statements, you can join data on related fields. When joining two data streams, the related data is usually timestamp, so that individual events from different streams can be placed into the appropriate time context. These timebound `JOIN` statements include an aggregation window. Hazelcast buffers events until the window duration is reached, then processes the data in the buffer. Subsequent events go into the next buffer until the duration is reached again, and so on.
+. You have all your data - now you need to put it all together so you can determine whether there’s enough time between flights to make a connection. Using SQL `JOIN` statements, you can join data on related fields. When joining two data streams, the related data is usually timestamp, so that individual events from different streams can be placed into the appropriate time context. These time-bound `JOIN` statements include an aggregation window. Hazelcast buffers events until the window duration is reached, then processes the data in the buffer. Subsequent events go into the next buffer until the duration is reached again, and so on.
 +
 ```sql
 SELECT 
