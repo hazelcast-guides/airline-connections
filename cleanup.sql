@@ -11,24 +11,24 @@
 
 DROP JOB IF EXISTS update_connections;
 
-DROP MAPPING departures;
+DROP MAPPING IF EXISTS departures;
 
-DROP MAPPING arrivals;
+DROP MAPPING  IF EXISTS arrivals;
 
-DROP VIEW arrivals_ordered;
+DROP VIEW  IF EXISTS arrivals_ordered;
 
-DROP VIEW departures_ordered;
+DROP VIEW  IF EXISTS departures_ordered;
 
-DROP MAPPING "connections";
+DROP MAPPING  IF EXISTS "connections";
 
-DROP MAPPING minimum_connection_times;
+DROP MAPPING  IF EXISTS minimum_connection_times;
 
 DELETE FROM local_mct;
 
-DROP MAPPING local_mct;
+DROP MAPPING  IF EXISTS local_mct;
 
 DELETE FROM local_connections;
 
-DROP MAPPING local_connections;
+DROP MAPPING  IF EXISTS local_connections;
 
-DROP MAPPING live_connections;
+DROP MAPPING  IF EXISTS live_connections;
