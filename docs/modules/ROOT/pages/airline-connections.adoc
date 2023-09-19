@@ -255,11 +255,6 @@ image:../images/cli_icon.jpg[CLI icon,130]
 . Follow the steps on the screen to download the CLC and the configuration for your cluster.
 image:../images/cli_setup_window.jpg[CLI setup window]
 
-[WARNING]
-====
-_Hello Hazelcast testers!_ Use the 5.3.3_PREVIEW1 version of CLC, available https://github.com/hazelcast/hazelcast-commandline-client/releases[here].
-====
-
 == Step 4. Submit Job
 Up to this point, you've used the SQL browser to run commands. This is useful for development and testing purposes, but in most production environments, you'll create SQL scripts that you then submit to the cluster to run as jobs, using the CLC.
 
