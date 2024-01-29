@@ -276,7 +276,7 @@ The `JOIN` part of this file is identical to the code you ran at the end of xref
 . To submit the script in non-interactive mode, use the following command. 
 +
 ```shell
-clc -c <your-cloud-config> script connections_job.sql
+clc -c <your-cloud-config> script run connections_job.sql
 ```
 +
 [NOTE]
