@@ -35,7 +35,7 @@ When you launch the demo in {hazelcast-cloud}, you might see a step-by-step guid
 
 Before starting this tutorial, make sure that you meet the following prerequisites:
 
-* You have a running cluster in {hazelcast-cloud} Trial
+* You have a running cluster in {hazelcast-cloud}
 * You've downloaded and connected the Command Line Client to your cluster
 * For the client, you will need
 ** Java 17 or later
@@ -63,11 +63,27 @@ image:connectwiz.gif[Walkthrough of Connection Wizard]
 
 The SQL code for each element is below.
 
+Connect to the Kafka server:
+```sql
+CREATE OR REPLACE DATA CONNECTION TrainingKafkaConnection
+     TYPE Kafka
+     NOT SHARED
+     OPTIONS
+          ('bootstrap.servers'='35.88.250.10:9092',
+          'security.protocol'='SASL_PLAINTEXT',
+          'client.dns.lookup'='use_all_dns_ips',
+          'sasl.mechanism'='SCRAM-SHA-512',
+          'sasl.jaas.config'='org.apache.kafka.common.security.scram.ScramLoginModule required
+          username="training_ro" password="h@zelcast!";',
+          'session.timeout.ms'='45000'
+          );
+```
+
 Mappings for streaming data:
 ```sql
 CREATE OR REPLACE MAPPING "arrivals"
 --topic name from Kafka
-EXTERNAL NAME "viridiantrial.flights.arrivals" (
+EXTERNAL NAME "demo.flights.arrivals" (
     --fields in topic
   event_time timestamp with time zone,
   "day" date,
@@ -76,7 +92,7 @@ EXTERNAL NAME "viridiantrial.flights.arrivals" (
   arrival_gate varchar,
   arrival_time timestamp 
 )
-DATA CONNECTION "ViridianTrialKafka"
+DATA CONNECTION "TrainingKafkaConnection"
 OPTIONS (
     'keyFormat' = 'varchar',
     'valueFormat' = 'json-flat'
@@ -85,7 +101,7 @@ OPTIONS (
 ```sql
 CREATE OR REPLACE MAPPING "departures"
 --topic name in Kafka
-EXTERNAL NAME "viridiantrial.flights.departures" (
+EXTERNAL NAME "demo.flights.departures" (
     --fields in topic
   event_time timestamp with time zone,
   "day" date,
@@ -94,12 +110,24 @@ EXTERNAL NAME "viridiantrial.flights.departures" (
   departure_gate varchar,
   departure_time timestamp
 )
-DATA CONNECTION "ViridianTrialKafka"
+DATA CONNECTION "TrainingKafkaConnection"
 OPTIONS (
     'keyFormat' = 'varchar',
     'valueFormat' = 'json-flat'
 );
 ```
+Postgres database connection:
+```sql
+CREATE OR REPLACE DATA CONNECTION TrainingPostgresConnection
+     TYPE JDBC
+     SHARED
+     OPTIONS
+          ('jdbcUrl'='jdbc:postgresql://training.cpgq0s6mse2z.us-west-2.rds.amazonaws.com:5432/postgres',
+          'user'='training_ro',
+          'password'='h@zelcast!'
+          );
+```
+
 Mappings for data in Postgres:
 ```sql
 CREATE OR REPLACE MAPPING "connections"
@@ -108,17 +136,17 @@ EXTERNAL NAME "public"."connections" (
   arriving_flight varchar,
   departing_flight varchar
 )
-DATA CONNECTION "ViridianTrialPostgres";
+DATA CONNECTION "TrainingPostgresConnection";
 ```
 ```sql
 CREATE OR REPLACE MAPPING "minimum_connection_times"
-EXTERNAL NAME "public"."minimum_connection_times" (
+EXTERNAL NAME "public"."minimum_connection_times"  (
   airport varchar,
   arrival_terminal varchar,
   departure_terminal varchar,
   minutes integer
 )
-DATA CONNECTION "ViridianTrialPostgres";
+DATA CONNECTION "TrainingPostgresConnection";
 ```
 Local storage for data from Postgres:
 ```sql
@@ -149,6 +177,7 @@ Import Postgres data into local storage:
 ```sql
 --To ensure a clean write, we make sure the map is empty
 DELETE FROM local_mct;
+
 --Now we copy all the data from the external store
 INSERT INTO local_mct(__key, airport, arrival_terminal, departure_terminal, minutes) 
 SELECT airport||arrival_terminal||departure_terminal, airport, arrival_terminal, departure_terminal, minutes 
